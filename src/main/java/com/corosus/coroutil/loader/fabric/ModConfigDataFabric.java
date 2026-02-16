@@ -2,7 +2,7 @@ package com.corosus.coroutil.loader.fabric;
 
 import com.corosus.coroutil.util.CULog;
 import com.corosus.modconfig.*;
-import fuzs.forgeconfigapiport.fabric.api.forge.v4.ForgeConfigRegistry;
+import fuzs.forgeconfigapiport.fabric.api.v5.ConfigRegistry;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.neoforged.fml.config.ModConfig;
 
@@ -81,7 +81,7 @@ public class ModConfigDataFabric extends ModConfigData {
         CULog.dbg("writeConfigFile invoked for " + this.configID + ", resetConfig: " + resetConfig);
         BUILDER.pop();
         ForgeConfigSpec CONFIG = BUILDER.build();
-        ForgeConfigRegistry.INSTANCE.register(ConfigMod.instance().MODID, ModConfig.Type.COMMON, CONFIG, saveFilePath + ".toml");
+        ConfigRegistry.INSTANCE.register(ConfigMod.instance().MODID, ModConfig.Type.COMMON, CONFIG, saveFilePath + ".toml");
 
     }
 
