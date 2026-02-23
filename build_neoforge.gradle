@@ -21,6 +21,9 @@ group = maven_group
 repositories {
     mavenLocal()
     maven {
+        url "https://maven.parchmentmc.org"
+    }
+    maven {
         url "https://cursemaven.com"
     }
 }
@@ -194,6 +197,7 @@ publishing {
     publications {
         register('mavenJava', MavenPublication) {
             from components.java
+            artifactId = "${project.mod_id}-neoforge"
         }
     }
     repositories {
