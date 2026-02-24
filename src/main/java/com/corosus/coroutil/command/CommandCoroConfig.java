@@ -12,6 +12,8 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.permissions.Permission;
+import net.minecraft.server.permissions.PermissionLevel;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,9 +23,10 @@ import static net.minecraft.commands.Commands.literal;
 
 public class CommandCoroConfig {
 	public static void register(final CommandDispatcher<CommandSourceStack> dispatcher) {
-		dispatcher.register(
-			Commands.literal(getCommandName()).requires(s -> s.hasPermission(2))
-			.then(literal("config")
+			dispatcher.register(
+				// MC 1.21.11 moved command source permission checks to PermissionSet/Permission.
+				Commands.literal(getCommandName()).requires(s -> s.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.byId(2))))
+				.then(literal("config")
 				.then(literal("common")
 					.then(argumentReload("common"))
 					.then(argumentSave())

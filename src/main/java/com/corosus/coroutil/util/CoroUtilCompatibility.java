@@ -13,8 +13,8 @@ public class CoroUtilCompatibility {
     private static boolean sereneSeasonsInstalled = false;
     private static boolean checksereneSeasons = true;
 
-    private static Class class_SereneSeasons_ASMHelper = null;
-    private static Method method_sereneSeasons_getFloatTemperature = null;
+    private static Class<?> sereneSeasonsSeasonHooksClass = null;
+    private static Method sereneSeasonsGetBiomeTemperatureMethod = null;
 
     /**
      * Used to contain compat with other mods, still used incase i add that back in
@@ -36,11 +36,11 @@ public class CoroUtilCompatibility {
     public static float getAdjustedTemperature(Level world, Biome biome, BlockPos pos) {
         if (isSereneSeasonsInstalled()) {
             try {
-                if (method_sereneSeasons_getFloatTemperature == null) {
-                    method_sereneSeasons_getFloatTemperature = class_SereneSeasons_ASMHelper.getDeclaredMethod("getBiomeTemperature", Level.class, Holder.class, BlockPos.class);
+                if (sereneSeasonsGetBiomeTemperatureMethod == null) {
+                    sereneSeasonsGetBiomeTemperatureMethod = sereneSeasonsSeasonHooksClass.getDeclaredMethod("getBiomeTemperature", Level.class, Holder.class, BlockPos.class);
                 }
                 Holder<Biome> biomeHolder = world.getBiome(pos);
-                return (float) method_sereneSeasons_getFloatTemperature.invoke(null, world, biomeHolder, pos);
+                return (float) sereneSeasonsGetBiomeTemperatureMethod.invoke(null, world, biomeHolder, pos);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 //prevent error spam
@@ -61,8 +61,8 @@ public class CoroUtilCompatibility {
         if (checksereneSeasons) {
             try {
                 checksereneSeasons = false;
-                class_SereneSeasons_ASMHelper = Class.forName("sereneseasons.season.SeasonHooks");
-                if (class_SereneSeasons_ASMHelper != null) {
+                sereneSeasonsSeasonHooksClass = Class.forName("sereneseasons.season.SeasonHooks");
+                if (sereneSeasonsSeasonHooksClass != null) {
                     sereneSeasonsInstalled = true;
                 }
             } catch (Exception ex) {
