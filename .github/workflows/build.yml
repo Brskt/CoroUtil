@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: [ 1.21.11 ]
+
+jobs:
+  build-fabric:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoroUtil
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build CoroUtil (Fabric)
+        run: ./gradlew -b build_fabric.gradle build
+
+      - name: Upload Fabric JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: coroutil-fabric
+          path: build/libs/coroutil-fabric-*.jar
+
+  build-neoforge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoroUtil
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build CoroUtil (NeoForge)
+        run: ./gradlew -b build_neoforge.gradle build
+
+      - name: Upload NeoForge JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: coroutil-neoforge
+          path: build/libs/coroutil-neoforge-*.jar
