@@ -7,8 +7,6 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.neoforged.fml.config.ConfigTracker;
-import net.neoforged.fml.config.ModConfig;
 
 import java.nio.file.Path;
 
@@ -38,10 +36,8 @@ public class ConfigModFabric extends ConfigMod implements ModInitializer {
 
 	@Override
 	public void reloadConfigs(String side) {
-		if (side.equals("client")) {
-			ConfigTracker.INSTANCE.loadConfigs(ModConfig.Type.CLIENT, ConfigMod.instance().getConfigPath());
-		} else if (side.equals("common")) {
-			ConfigTracker.INSTANCE.loadConfigs(ModConfig.Type.COMMON, ConfigMod.instance().getConfigPath());
-		}
+		// Snapshot fallback path: ForgeConfigAPIPort is not available for 26.1 yet, so Fabric config reload
+		// only re-applies the current in-memory values through CoroUtil's registry.
+		CoroConfigRegistry.instance().updateAllConfigsFromForge();
 	}
 }

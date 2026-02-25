@@ -45,11 +45,18 @@ public class CoroUtilCompatibility {
                 ex.printStackTrace();
                 //prevent error spam
                 sereneSeasonsInstalled = false;
-                return biome.getTemperature(pos, 64);
+                return getAdjustedTemperatureFallback(world, biome, pos);
             }
         } else {
-            return biome.getTemperature(pos, 64);
+            return getAdjustedTemperatureFallback(world, biome, pos);
         }
+    }
+
+    private static float getAdjustedTemperatureFallback(Level world, Biome biome, BlockPos pos) {
+        // MC 26.1 snapshot no longer exposes Biome#getTemperature(BlockPos, int) publicly.
+        // CoroUtil only uses this value for the rain/snow threshold check (0.15F), so a
+        // threshold-equivalent fallback is sufficient here.
+        return biome.warmEnoughToRain(pos, world.getSeaLevel()) ? 0.15F : 0.0F;
     }
 
     /**

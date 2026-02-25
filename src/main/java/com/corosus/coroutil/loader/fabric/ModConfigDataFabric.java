@@ -1,20 +1,19 @@
 package com.corosus.coroutil.loader.fabric;
 
 import com.corosus.coroutil.util.CULog;
-import com.corosus.modconfig.*;
-import fuzs.forgeconfigapiport.fabric.api.v5.ConfigRegistry;
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.neoforged.fml.config.ModConfig;
+import com.corosus.modconfig.CoroConfigRegistry;
+import com.corosus.modconfig.IConfigCategory;
+import com.corosus.modconfig.ModConfigData;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 
+/**
+ * Snapshot fallback implementation used when ForgeConfigAPIPort is not available for Fabric.
+ *
+ * This keeps CoroUtil's config registry functional enough for runtime defaults and local edits,
+ * but does not provide persisted TOML-backed config files on Fabric snapshots.
+ */
 public class ModConfigDataFabric extends ModConfigData {
-
-    public HashMap<String, ForgeConfigSpec.ConfigValue<String>> valsStringConfig = new HashMap<>();
-    public HashMap<String, ForgeConfigSpec.ConfigValue<Integer>> valsIntegerConfig = new HashMap<>();
-    public HashMap<String, ForgeConfigSpec.ConfigValue<Double>> valsDoubleConfig = new HashMap<>();
-    public HashMap<String, ForgeConfigSpec.ConfigValue<Boolean>> valsBooleanConfig = new HashMap<>();
 
     public ModConfigDataFabric(String savePath, String parStr, Class parClass, IConfigCategory parConfig) {
         super(savePath, parStr, parClass, parConfig);
@@ -22,108 +21,52 @@ public class ModConfigDataFabric extends ModConfigData {
 
     @Override
     public String getConfigString(String fieldName) {
-        return valsStringConfig.get(fieldName).get();
+        return valsString.get(fieldName);
     }
 
     @Override
     public Integer getConfigInteger(String fieldName) {
-        return valsIntegerConfig.get(fieldName).get();
+        return valsInteger.get(fieldName);
     }
 
     @Override
     public Double getConfigDouble(String fieldName) {
-        return valsDoubleConfig.get(fieldName).get();
+        return valsDouble.get(fieldName);
     }
 
     @Override
     public Boolean getConfigBoolean(String fieldName) {
-        return valsBooleanConfig.get(fieldName).get();
+        return valsBoolean.get(fieldName);
     }
 
     @Override
     public <T> void setConfig(String fieldName, T obj) {
+        // Keep the in-memory mirrors in sync. Snapshot fallback does not persist to disk on Fabric.
         if (obj instanceof String) {
-            valsStringConfig.get(fieldName).set((String)obj);
-            valsStringConfig.get(fieldName).save();
+            valsString.put(fieldName, (String) obj);
         } else if (obj instanceof Integer) {
-            valsIntegerConfig.get(fieldName).set((Integer)obj);
-            valsIntegerConfig.get(fieldName).save();
+            valsInteger.put(fieldName, (Integer) obj);
         } else if (obj instanceof Double) {
-            valsDoubleConfig.get(fieldName).set((Double)obj);
-            valsDoubleConfig.get(fieldName).save();
+            valsDouble.put(fieldName, (Double) obj);
         } else if (obj instanceof Boolean) {
-            valsBooleanConfig.get(fieldName).set((Boolean)obj);
-            valsBooleanConfig.get(fieldName).save();
-        } else {
-            //dbg("unhandled datatype, update initField");
+            valsBoolean.put(fieldName, (Boolean) obj);
         }
     }
 
     @Override
     public void writeConfigFile(boolean resetConfig) {
-
-        //TODO: see if we need support for resetting config
-        //if (resetConfig) if (saveFilePath.exists()) saveFilePath.delete();
-        //preInitConfig = new Configuration(saveFilePath);
-        //preInitConfig.load();
-        ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
-        BUILDER.comment("General mod settings").push("general");
-
+        // Snapshot fallback: no ForgeConfigAPIPort-backed TOML config on Fabric 26.1 yet.
+        // We still re-apply current registry values into the runtime config object to preserve behavior.
         Field[] fields = configClass.getDeclaredFields();
-
-        for (int i = 0; i < fields.length; i++) {
-            Field field = fields[i];
+        for (Field field : fields) {
             String name = field.getName();
-
-            addToConfig(BUILDER, field, name);
+            Object obj = CoroConfigRegistry.instance().getField(configID, name);
+            if (obj != null) {
+                setFieldBasedOnType(name, obj);
+            }
         }
 
-        CULog.dbg("writeConfigFile invoked for " + this.configID + ", resetConfig: " + resetConfig);
-        BUILDER.pop();
-        ForgeConfigSpec CONFIG = BUILDER.build();
-        ConfigRegistry.INSTANCE.register(ConfigMod.instance().MODID, ModConfig.Type.COMMON, CONFIG, saveFilePath + ".toml");
-
-    }
-
-    /**
-     * Perform the actual adding of values to the config file
-     * @param name Name of the variable
-     * @param field Field in the file the variable is
-     */
-    private void addToConfig(ForgeConfigSpec.Builder builder, Field field, String name) {
-
-        // Comment from the annotation on the value of the actual variable that 'name' is retrieved from
-        //space intentional here to workaround forge hating blank comments
-        String comment = "-";
-        double min = Double.MIN_VALUE;
-        double max = Double.MAX_VALUE;
-
-        ConfigComment anno_comment = field.getAnnotation(ConfigComment.class);
-        if (anno_comment != null) {
-            comment = anno_comment.value()[0];
-        }
-
-        ConfigParams anno_params = field.getAnnotation(ConfigParams.class);
-        if (anno_params != null) {
-            comment = anno_params.comment();
-            min = anno_params.min();
-            max = anno_params.max();
-        }
-
-        //System.out.println("registering config field: " + name);
-
-        Object obj = CoroConfigRegistry.instance().getField(configID, name);
-        if (obj instanceof String) {
-            valsStringConfig.put(name, builder.comment(comment).define(name, (String)obj));
-        } else if (obj instanceof Integer) {
-            valsIntegerConfig.put(name, builder.comment(comment).defineInRange(name, (Integer)obj, (int)min, (int)max));
-        } else if (obj instanceof Double) {
-            valsDoubleConfig.put(name, builder.comment(comment).defineInRange(name, (Double)obj, min, max));
-        } else if (obj instanceof Boolean) {
-            valsBooleanConfig.put(name, builder.comment(comment).define(name, (Boolean)obj));
-        } else {
-            //dbg("unhandled datatype, update initField");
-        }
-        setFieldBasedOnType(name, obj);
+        CULog.dbg("writeConfigFile (snapshot Fabric fallback, no persistence) invoked for " + this.configID
+                + ", resetConfig: " + resetConfig);
     }
 }

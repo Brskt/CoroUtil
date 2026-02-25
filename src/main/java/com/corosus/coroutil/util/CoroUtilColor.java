@@ -1,20 +1,25 @@
 package com.corosus.coroutil.util;
 
 import com.corosus.coroutil.repack.de.androidpit.colorthief.ColorThief;
+import com.mojang.blaze3d.platform.NativeImage;
 import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.stream.IntStream;
 
 public class CoroUtilColor {
-    
+    private static final Field SPRITE_CONTENTS_ORIGINAL_IMAGE_FIELD = findOriginalImageField();
 
     public static int[] getColors(BlockState state) {
-        // Prefer the shaper helper to avoid model-type API differences across loader mappings.
-        TextureAtlasSprite sprite = Minecraft.getInstance().getBlockRenderer().getBlockModelShaper().getParticleIcon(state);
+        TextureAtlasSprite sprite = getParticleSprite(state);
         if (sprite != null && !sprite.contents().name().equals(MissingTextureAtlasSprite.getLocation())) {
             return getColors(sprite);
         }
@@ -22,28 +27,35 @@ public class CoroUtilColor {
     }
 
     public static int getPixelRGBA(TextureAtlasSprite textureAtlasSprite, int frameIndex, int x, int y) {
-        if (textureAtlasSprite.contents().animatedTexture != null) {
-            x += textureAtlasSprite.contents().animatedTexture.getFrameX(frameIndex) * textureAtlasSprite.contents().width();
-            y += textureAtlasSprite.contents().animatedTexture.getFrameY(frameIndex) * textureAtlasSprite.contents().height();
+        SpriteContents contents = textureAtlasSprite.contents();
+        NativeImage originalImage = getOriginalImage(contents);
+
+        if (contents.isAnimated()) {
+            int frameRowSize = Math.max(1, originalImage.getWidth() / contents.width());
+            x += (frameIndex % frameRowSize) * contents.width();
+            y += (frameIndex / frameRowSize) * contents.height();
         }
 
-        return textureAtlasSprite.contents().originalImage.getPixelABGR(x, y);
+        // NativeImage#getPixel returns ARGB in 26.1 snapshots.
+        return originalImage.getPixel(x, y);
     }
 
     public static int[] getColors(TextureAtlasSprite sprite) {
         int width = sprite.contents().width();
         int height = sprite.contents().height();
-        int frames = sprite.contents().getFrameCount();
-        
+        int[] frameIndices = getFrameIndices(sprite.contents());
+        int frames = frameIndices.length;
+
         BufferedImage img = new BufferedImage(width, height * frames, BufferedImage.TYPE_4BYTE_ABGR);
         for (int i = 0; i < frames; i++) {
+            int frameIndex = frameIndices[i];
         	for (int x = 0; x < width; x++) {
         		for (int y = 0; y < height; y++) {
-                    int abgr = getPixelRGBA(sprite, i, x, y);
-                    int red = abgr & 0xFF;
-                    int green = (abgr >> 8) & 0xFF;
-                    int blue = (abgr >> 16) & 0xFF;
-                    int alpha = (abgr >> 24) & 0xFF;
+                    int argb = getPixelRGBA(sprite, frameIndex, x, y);
+                    int alpha = (argb >>> 24) & 0xFF;
+                    int red = (argb >>> 16) & 0xFF;
+                    int green = (argb >>> 8) & 0xFF;
+                    int blue = argb & 0xFF;
                     img.setRGB(x, y + (i * height), (alpha << 24) | (red << 16) | (green << 8) | blue);
         		}
         	}
@@ -66,6 +78,86 @@ public class CoroUtilColor {
         float mb = 1F;//(multiplier & 0xFF) / 255f;
 
         return 0xFF000000 | (((int) (colorData[0] * mr)) << 16) | (((int) (colorData[1] * mg)) << 8) | (int) (colorData[2] * mb);
+    }
+
+    private static Field findOriginalImageField() {
+        try {
+            Field field = SpriteContents.class.getDeclaredField("originalImage");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to access SpriteContents.originalImage", e);
+        }
+    }
+
+    private static NativeImage getOriginalImage(SpriteContents contents) {
+        try {
+            return (NativeImage) SPRITE_CONTENTS_ORIGINAL_IMAGE_FIELD.get(contents);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to read SpriteContents.originalImage", e);
+        }
+    }
+
+    private static TextureAtlasSprite getParticleSprite(BlockState state) {
+        Object blockModel = Minecraft.getInstance().getBlockRenderer().getBlockModel(state);
+        if (blockModel == null) {
+            return null;
+        }
+
+        // 26.x snapshots diverge between loader toolchains here; try the known shapes.
+        Object material = invokeNoArg(blockModel, "particleMaterial");
+        if (material != null) {
+            Object sprite = invokeNoArg(material, "sprite");
+            if (sprite instanceof TextureAtlasSprite textureAtlasSprite) {
+                return textureAtlasSprite;
+            }
+        }
+
+        Object sprite = invokeNoArg(blockModel, "particleSprite");
+        if (sprite instanceof TextureAtlasSprite textureAtlasSprite) {
+            return textureAtlasSprite;
+        }
+
+        sprite = invokeNoArg(blockModel, "particleIcon");
+        if (sprite instanceof TextureAtlasSprite textureAtlasSprite) {
+            return textureAtlasSprite;
+        }
+
+        return null;
+    }
+
+    private static int[] getFrameIndices(SpriteContents contents) {
+        if (!contents.isAnimated()) {
+            return new int[]{0};
+        }
+
+        Object framesObj = invokeNoArg(contents, "getUniqueFrames");
+        if (framesObj instanceof IntList intList) {
+            return intList.toIntArray();
+        }
+        if (framesObj instanceof IntStream intStream) {
+            return intStream.toArray();
+        }
+        if (framesObj instanceof int[] ints) {
+            return ints;
+        }
+
+        return new int[]{0};
+    }
+
+    private static Object invokeNoArg(Object target, String name) {
+        try {
+            Method method;
+            try {
+                method = target.getClass().getMethod(name);
+            } catch (NoSuchMethodException e) {
+                method = target.getClass().getDeclaredMethod(name);
+                method.setAccessible(true);
+            }
+            return method.invoke(target);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
 }

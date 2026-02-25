@@ -6,7 +6,16 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
+import java.lang.reflect.Field;
+
 public class CoroUtilEntOrParticle {
+
+    private static final Field PARTICLE_X_FIELD = getParticleField("x");
+    private static final Field PARTICLE_Y_FIELD = getParticleField("y");
+    private static final Field PARTICLE_Z_FIELD = getParticleField("z");
+    private static final Field PARTICLE_XD_FIELD = getParticleField("xd");
+    private static final Field PARTICLE_YD_FIELD = getParticleField("yd");
+    private static final Field PARTICLE_ZD_FIELD = getParticleField("zd");
 	
 	public static double getPosX(Object obj) {
 		if (obj instanceof Entity) {
@@ -17,7 +26,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static double getPosXParticle(Object obj) {
-		return ((Particle)obj).x;
+		return getParticleDouble(obj, PARTICLE_X_FIELD);
 	}
 	
 	public static double getPosY(Object obj) {
@@ -29,7 +38,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static double getPosYParticle(Object obj) {
-		return ((Particle)obj).y;
+		return getParticleDouble(obj, PARTICLE_Y_FIELD);
 	}
 	
 	public static double getPosZ(Object obj) {
@@ -41,7 +50,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static double getPosZParticle(Object obj) {
-		return ((Particle)obj).z;
+		return getParticleDouble(obj, PARTICLE_Z_FIELD);
 	}
 	
 	public static double getMotionX(Object obj) {
@@ -53,7 +62,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static double getMotionXParticle(Object obj) {
-		return ((Particle)obj).xd;
+		return getParticleDouble(obj, PARTICLE_XD_FIELD);
 	}
 	
 	public static double getMotionY(Object obj) {
@@ -65,7 +74,7 @@ public class CoroUtilEntOrParticle {
 	}
 	
 	private static double getMotionYParticle(Object obj) {
-		return ((Particle)obj).yd;
+		return getParticleDouble(obj, PARTICLE_YD_FIELD);
 	}
 	
 	public static double getMotionZ(Object obj) {
@@ -77,7 +86,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static double getMotionZParticle(Object obj) {
-		return ((Particle)obj).zd;
+		return getParticleDouble(obj, PARTICLE_ZD_FIELD);
 	}
 	
 	public static void setMotionX(Object obj, double val) {
@@ -89,7 +98,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setMotionXParticle(Object obj, double val) {
-		((Particle)obj).xd = val;
+		setParticleDouble(obj, PARTICLE_XD_FIELD, val);
 	}
 	
 	public static void setMotionY(Object obj, double val) {
@@ -101,7 +110,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setMotionYParticle(Object obj, double val) {
-		((Particle)obj).yd = val;
+		setParticleDouble(obj, PARTICLE_YD_FIELD, val);
 	}
 	
 	public static void setMotionZ(Object obj, double val) {
@@ -113,7 +122,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setMotionZParticle(Object obj, double val) {
-		((Particle)obj).zd = val;
+		setParticleDouble(obj, PARTICLE_ZD_FIELD, val);
 	}
 
 	public static double getDistance(Object obj, double x, double y, double z)
@@ -134,7 +143,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setPosXParticle(Object obj, double val) {
-		((Particle)obj).x = val;
+		setParticleDouble(obj, PARTICLE_X_FIELD, val);
 	}
 
 	public static void setPosY(Object obj, double val) {
@@ -147,7 +156,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setPosYParticle(Object obj, double val) {
-		((Particle)obj).y = val;
+		setParticleDouble(obj, PARTICLE_Y_FIELD, val);
 	}
 
 	public static void setPosZ(Object obj, double val) {
@@ -160,7 +169,7 @@ public class CoroUtilEntOrParticle {
 	}
 
 	private static void setPosZParticle(Object obj, double val) {
-		((Particle)obj).z = val;
+		setParticleDouble(obj, PARTICLE_Z_FIELD, val);
 	}
 
 	public static Level getWorld(Object obj) {
@@ -168,6 +177,32 @@ public class CoroUtilEntOrParticle {
 			return ((Entity)obj).level();
 		} else {
 			return CoroUtilParticle.getWorldParticle(obj);
+		}
+	}
+
+	private static Field getParticleField(String name) {
+		try {
+			Field field = Particle.class.getDeclaredField(name);
+			field.setAccessible(true);
+			return field;
+		} catch (ReflectiveOperationException e) {
+			throw new RuntimeException("Failed to access Particle field: " + name, e);
+		}
+	}
+
+	private static double getParticleDouble(Object obj, Field field) {
+		try {
+			return field.getDouble(obj);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Failed to read Particle field: " + field.getName(), e);
+		}
+	}
+
+	private static void setParticleDouble(Object obj, Field field, double value) {
+		try {
+			field.setDouble(obj, value);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Failed to write Particle field: " + field.getName(), e);
 		}
 	}
 	
