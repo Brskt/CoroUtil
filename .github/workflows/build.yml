@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ 1.21.11 ]
+    branches: [ 1.21.11, 26.1-snapshot-10 ]
 
 jobs:
   build-fabric:
@@ -11,17 +11,17 @@ jobs:
       - name: Checkout CoroUtil
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ startsWith(github.ref_name, '26.') && '25' || '21' }}
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build CoroUtil (Fabric)
-        run: ./gradlew -b build_fabric.gradle build
+        run: ./gradlew -Dcoroutil.buildScript=build_fabric.gradle build
 
       - name: Upload Fabric JAR
         uses: actions/upload-artifact@v4
@@ -35,17 +35,17 @@ jobs:
       - name: Checkout CoroUtil
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ startsWith(github.ref_name, '26.') && '25' || '21' }}
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build CoroUtil (NeoForge)
-        run: ./gradlew -b build_neoforge.gradle build
+        run: ./gradlew -Dcoroutil.buildScript=build_neoforge.gradle build
 
       - name: Upload NeoForge JAR
         uses: actions/upload-artifact@v4
