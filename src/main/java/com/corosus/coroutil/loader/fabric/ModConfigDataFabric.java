@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
  * but does not provide persisted TOML-backed config files on Fabric snapshots.
  */
 public class ModConfigDataFabric extends ModConfigData {
+    private static boolean loggedSnapshotFallbackPersistenceNotice = false;
 
     public ModConfigDataFabric(String savePath, String parStr, Class parClass, IConfigCategory parConfig) {
         super(savePath, parStr, parClass, parConfig);
@@ -57,6 +58,11 @@ public class ModConfigDataFabric extends ModConfigData {
     public void writeConfigFile(boolean resetConfig) {
         // Snapshot fallback: no ForgeConfigAPIPort-backed TOML config on Fabric 26.1 yet.
         // We still re-apply current registry values into the runtime config object to preserve behavior.
+        if (!loggedSnapshotFallbackPersistenceNotice) {
+            loggedSnapshotFallbackPersistenceNotice = true;
+            CULog.log("Fabric snapshot config fallback active: config writes are in-memory only (no TOML persistence) until ForgeConfigAPIPort is available for 26.1.");
+        }
+
         Field[] fields = configClass.getDeclaredFields();
         for (Field field : fields) {
             String name = field.getName();

@@ -13,10 +13,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
 public class CoroUtilColor {
     private static final Field SPRITE_CONTENTS_ORIGINAL_IMAGE_FIELD = findOriginalImageField();
+    private static final ConcurrentHashMap<String, Method> NO_ARG_METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> NO_ARG_METHOD_MISS_CACHE = ConcurrentHashMap.newKeySet();
 
     public static int[] getColors(BlockState state) {
         TextureAtlasSprite sprite = getParticleSprite(state);
@@ -146,17 +150,38 @@ public class CoroUtilColor {
     }
 
     private static Object invokeNoArg(Object target, String name) {
+        String cacheKey = target.getClass().getName() + "#" + name;
+        if (NO_ARG_METHOD_MISS_CACHE.contains(cacheKey)) {
+            return null;
+        }
+
         try {
-            Method method;
-            try {
-                method = target.getClass().getMethod(name);
-            } catch (NoSuchMethodException e) {
-                method = target.getClass().getDeclaredMethod(name);
-                method.setAccessible(true);
+            Method method = NO_ARG_METHOD_CACHE.get(cacheKey);
+            if (method == null) {
+                method = findNoArgMethod(target.getClass(), name);
+                if (method == null) {
+                    NO_ARG_METHOD_MISS_CACHE.add(cacheKey);
+                    return null;
+                }
+                NO_ARG_METHOD_CACHE.put(cacheKey, method);
             }
             return method.invoke(target);
         } catch (ReflectiveOperationException ignored) {
             return null;
+        }
+    }
+
+    private static Method findNoArgMethod(Class<?> targetClass, String name) {
+        try {
+            return targetClass.getMethod(name);
+        } catch (NoSuchMethodException e) {
+            try {
+                Method method = targetClass.getDeclaredMethod(name);
+                method.setAccessible(true);
+                return method;
+            } catch (NoSuchMethodException ignored) {
+                return null;
+            }
         }
     }
 

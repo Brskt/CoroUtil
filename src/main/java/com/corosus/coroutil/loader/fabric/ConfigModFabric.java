@@ -11,6 +11,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.file.Path;
 
 public class ConfigModFabric extends ConfigMod implements ModInitializer {
+	private static boolean loggedSnapshotFallbackReloadNotice = false;
 
 	public ConfigModFabric() {
 		this.init();
@@ -38,6 +39,10 @@ public class ConfigModFabric extends ConfigMod implements ModInitializer {
 	public void reloadConfigs(String side) {
 		// Snapshot fallback path: ForgeConfigAPIPort is not available for 26.1 yet, so Fabric config reload
 		// only re-applies the current in-memory values through CoroUtil's registry.
+		if (!loggedSnapshotFallbackReloadNotice) {
+			loggedSnapshotFallbackReloadNotice = true;
+			com.corosus.coroutil.util.CULog.log("Fabric snapshot config fallback active: reload re-applies in-memory values only (no TOML-backed ForgeConfigAPIPort reload).");
+		}
 		CoroConfigRegistry.instance().updateAllConfigsFromForge();
 	}
 }
